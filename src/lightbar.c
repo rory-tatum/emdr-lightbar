@@ -40,6 +40,7 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
     }
 
     if (state->phase == LIGHTBAR_MOVING) {
+        if (config->speed <= 0.0f) return;
         float ms_per_step = 1000.0f / config->speed;
         state->move_accum_ms += dt_ms;
         while (state->move_accum_ms >= ms_per_step) {

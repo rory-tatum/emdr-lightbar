@@ -10,6 +10,7 @@ static Led leds[MAX_LEDS];
 EMSCRIPTEN_KEEPALIVE
 void wasm_init(int num_leds, float speed, int end_pause, int mid_pause,
                int glow_radius, int r, int g, int b) {
+    if (num_leds > MAX_LEDS) num_leds = MAX_LEDS;
     config.num_leds = (uint8_t)num_leds;
     config.speed = speed;
     config.end_pause_ms = (uint16_t)end_pause;
