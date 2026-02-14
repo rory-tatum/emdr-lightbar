@@ -192,6 +192,77 @@ void test_end_pause_partial_timer(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.0f, state.pause_timer_ms);
 }
 
+void test_update_triggers_middle_pause(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 200, .mid_pause_ms = 100
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    /* Position one step before middle, moving left */
+    state.position = 13;
+    state.direction = -1;
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(12, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_MIDDLE, state.phase);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.0f, state.pause_timer_ms);
+}
+
+void test_update_no_middle_pause_on_start(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 200, .mid_pause_ms = 100
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    /* Start at middle (12), first step should move to 13 without pausing */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(13, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+}
+
+void test_middle_pause_expires_and_resumes(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 200, .mid_pause_ms = 100
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 12;
+    state.direction = -1;
+    state.phase = LIGHTBAR_PAUSED_MIDDLE;
+    state.pause_timer_ms = 100.0f;
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    /* Direction unchanged after middle pause */
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+}
+
+void test_middle_pause_no_retrigger_after_resume(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 200, .mid_pause_ms = 100
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    /* Simulate resuming from middle pause: at middle, moving left */
+    state.position = 12;
+    state.direction = -1;
+    state.phase = LIGHTBAR_PAUSED_MIDDLE;
+    state.pause_timer_ms = 100.0f;
+    /* Expire the pause */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    /* Next step should move to 11, not re-trigger middle pause */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(11, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_sets_position_to_middle);
@@ -210,5 +281,9 @@ int main(void) {
     RUN_TEST(test_update_triggers_end_pause_at_left);
     RUN_TEST(test_end_pause_expires_and_reverses);
     RUN_TEST(test_end_pause_partial_timer);
+    RUN_TEST(test_update_triggers_middle_pause);
+    RUN_TEST(test_update_no_middle_pause_on_start);
+    RUN_TEST(test_middle_pause_expires_and_resumes);
+    RUN_TEST(test_middle_pause_no_retrigger_after_resume);
     return UNITY_END();
 }
