@@ -11,6 +11,8 @@ TEST_SRC = test/test_main.c
 LIGHTBAR_SRC = src/lightbar.c
 LIGHTBAR_TEST_SRC = test/test_lightbar.c
 
+WASM_BRIDGE = web/wasm_bridge.c
+
 .PHONY: native test wasm clean
 
 native: build/main
@@ -38,8 +40,9 @@ build/test_lightbar: $(LIGHTBAR_TEST_SRC) $(LIGHTBAR_SRC) include/lightbar.h | b
 wasm: web/main.js
 	@echo "WASM build complete: web/main.js web/main.wasm"
 
-web/main.js: $(SRC) include/main.h
-	$(EMCC) $(CFLAGS) -o $@ $(SRC)
+web/main.js: $(WASM_BRIDGE) $(LIGHTBAR_SRC) include/lightbar.h
+	$(EMCC) $(CFLAGS) -s NO_EXIT_RUNTIME=1 -s EXPORTED_RUNTIME_METHODS='["ccall"]' \
+		-o $@ $(WASM_BRIDGE) $(LIGHTBAR_SRC)
 
 clean:
 	rm -rf build/

@@ -12,31 +12,171 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
             margin: 0;
+            padding: 2em;
         }
-        h1 { color: #0ff; }
-        #output {
-            background: #16213e;
-            padding: 1em 2em;
+        h1 { color: #0ff; margin-bottom: 1em; }
+        #strip {
+            display: flex;
+            gap: 2px;
+            padding: 1em;
+            background: #111;
             border-radius: 8px;
-            border: 1px solid #0f3460;
-            margin-top: 1em;
-            white-space: pre;
+            margin-bottom: 2em;
         }
+        .led {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #000;
+        }
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+            width: 400px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .control-row label { width: 120px; }
+        .control-row input[type="range"] { flex: 1; margin: 0 1em; }
+        .control-row .value { width: 60px; text-align: right; }
+        #toggle {
+            padding: 0.5em 2em;
+            font-size: 1.2em;
+            font-family: monospace;
+            background: #0f3460;
+            color: #0ff;
+            border: 1px solid #0ff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #toggle:hover { background: #16213e; }
     </style>
 </head>
 <body>
     <h1>EMDR Lightbar</h1>
-    <div id="output">Loading WASM...</div>
+    <div id="strip"></div>
+    <div id="controls">
+        <div style="text-align: center;">
+            <button id="toggle">Start</button>
+        </div>
+        <div class="control-row">
+            <label>Speed</label>
+            <input type="range" id="speed" min="1" max="60" value="15">
+            <span class="value"><span id="speed-val">15</span> /s</span>
+        </div>
+        <div class="control-row">
+            <label>End pause</label>
+            <input type="range" id="end-pause" min="0" max="1000" step="10" value="200">
+            <span class="value"><span id="end-pause-val">200</span> ms</span>
+        </div>
+        <div class="control-row">
+            <label>Mid pause</label>
+            <input type="range" id="mid-pause" min="0" max="1000" step="10" value="100">
+            <span class="value"><span id="mid-pause-val">100</span> ms</span>
+        </div>
+        <div class="control-row">
+            <label>Color</label>
+            <input type="color" id="color" value="#00ffff">
+        </div>
+    </div>
     <script>
         var Module = {
-            print: function(text) {
-                document.getElementById('output').textContent = text;
-            },
-            printErr: function(text) {
-                console.error(text);
+            onRuntimeInitialized: function() {
+                var NUM_LEDS = 24;
+                var running = false;
+                var lastTime = 0;
+
+                Module._wasm_init(NUM_LEDS, 15.0, 200, 100, 2, 0, 255, 255);
+
+                var strip = document.getElementById('strip');
+                var ledEls = [];
+                for (var i = 0; i < NUM_LEDS; i++) {
+                    var el = document.createElement('div');
+                    el.className = 'led';
+                    strip.appendChild(el);
+                    ledEls.push(el);
+                }
+
+                /* Render initial stopped state */
+                Module._wasm_render();
+                var ptr = Module._wasm_get_leds_ptr();
+                for (var i = 0; i < NUM_LEDS; i++) {
+                    var r = Module.HEAPU8[ptr + i * 3];
+                    var g = Module.HEAPU8[ptr + i * 3 + 1];
+                    var b = Module.HEAPU8[ptr + i * 3 + 2];
+                    ledEls[i].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+                }
+
+                var toggleBtn = document.getElementById('toggle');
+                toggleBtn.addEventListener('click', function() {
+                    running = !running;
+                    if (running) {
+                        Module._wasm_start();
+                        toggleBtn.textContent = 'Stop';
+                        lastTime = 0;
+                    } else {
+                        Module._wasm_stop();
+                        toggleBtn.textContent = 'Start';
+                        /* Re-render stopped state */
+                        Module._wasm_render();
+                        ptr = Module._wasm_get_leds_ptr();
+                        for (var j = 0; j < NUM_LEDS; j++) {
+                            var r = Module.HEAPU8[ptr + j * 3];
+                            var g = Module.HEAPU8[ptr + j * 3 + 1];
+                            var b = Module.HEAPU8[ptr + j * 3 + 2];
+                            ledEls[j].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+                        }
+                    }
+                });
+
+                document.getElementById('speed').addEventListener('input', function(e) {
+                    var val = parseFloat(e.target.value);
+                    document.getElementById('speed-val').textContent = val;
+                    Module._wasm_set_speed(val);
+                });
+
+                document.getElementById('end-pause').addEventListener('input', function(e) {
+                    var val = parseInt(e.target.value);
+                    document.getElementById('end-pause-val').textContent = val;
+                    Module._wasm_set_end_pause(val);
+                });
+
+                document.getElementById('mid-pause').addEventListener('input', function(e) {
+                    var val = parseInt(e.target.value);
+                    document.getElementById('mid-pause-val').textContent = val;
+                    Module._wasm_set_mid_pause(val);
+                });
+
+                document.getElementById('color').addEventListener('input', function(e) {
+                    var hex = e.target.value;
+                    var r = parseInt(hex.substr(1, 2), 16);
+                    var g = parseInt(hex.substr(3, 2), 16);
+                    var b = parseInt(hex.substr(5, 2), 16);
+                    Module._wasm_set_color(r, g, b);
+                });
+
+                function frame(time) {
+                    if (running) {
+                        var dt = lastTime > 0 ? time - lastTime : 0;
+                        Module._wasm_update(dt);
+                        Module._wasm_render();
+                        ptr = Module._wasm_get_leds_ptr();
+                        for (var i = 0; i < NUM_LEDS; i++) {
+                            var r = Module.HEAPU8[ptr + i * 3];
+                            var g = Module.HEAPU8[ptr + i * 3 + 1];
+                            var b = Module.HEAPU8[ptr + i * 3 + 2];
+                            ledEls[i].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+                        }
+                    }
+                    lastTime = time;
+                    requestAnimationFrame(frame);
+                }
+                requestAnimationFrame(frame);
             }
         };
     </script>
