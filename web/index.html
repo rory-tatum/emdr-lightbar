@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMDR Lightbar</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        h1 { color: #0ff; }
+        #output {
+            background: #16213e;
+            padding: 1em 2em;
+            border-radius: 8px;
+            border: 1px solid #0f3460;
+            margin-top: 1em;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+    <h1>EMDR Lightbar</h1>
+    <div id="output">Loading WASM...</div>
+    <script>
+        var Module = {
+            print: function(text) {
+                document.getElementById('output').textContent = text;
+            },
+            printErr: function(text) {
+                console.error(text);
+            }
+        };
+    </script>
+    <script src="main.js"></script>
+</body>
+</html>
