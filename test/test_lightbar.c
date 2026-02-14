@@ -296,6 +296,99 @@ void test_zero_mid_pause_skips_pause(void) {
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
 }
 
+void test_render_single_led_no_glow(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .glow_radius = 0,
+        .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    state.position = 5;
+    Led leds[10];
+    lightbar_render(&state, &config, leds);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[5].r);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[5].g);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[5].b);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[4].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[6].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[0].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[9].r);
+}
+
+void test_render_glow_radius_2(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .glow_radius = 2,
+        .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    state.position = 5;
+    Led leds[10];
+    lightbar_render(&state, &config, leds);
+    /* distance 0: 255 */
+    TEST_ASSERT_EQUAL_UINT8(255, leds[5].r);
+    /* distance 1: 255 * (1 - 1/3) = 170 */
+    TEST_ASSERT_EQUAL_UINT8(170, leds[4].r);
+    TEST_ASSERT_EQUAL_UINT8(170, leds[6].r);
+    /* distance 2: 255 * (1 - 2/3) = 85 */
+    TEST_ASSERT_EQUAL_UINT8(85, leds[3].r);
+    TEST_ASSERT_EQUAL_UINT8(85, leds[7].r);
+    /* distance 3: off */
+    TEST_ASSERT_EQUAL_UINT8(0, leds[2].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[8].r);
+}
+
+void test_render_glow_at_left_edge(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .glow_radius = 2,
+        .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    state.position = 0;
+    Led leds[10];
+    lightbar_render(&state, &config, leds);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[0].r);
+    TEST_ASSERT_EQUAL_UINT8(170, leds[1].r);
+    TEST_ASSERT_EQUAL_UINT8(85, leds[2].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[3].r);
+}
+
+void test_render_glow_at_right_edge(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .glow_radius = 2,
+        .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    state.position = 9;
+    Led leds[10];
+    lightbar_render(&state, &config, leds);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[9].r);
+    TEST_ASSERT_EQUAL_UINT8(170, leds[8].r);
+    TEST_ASSERT_EQUAL_UINT8(85, leds[7].r);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[6].r);
+}
+
+void test_render_colored_dot(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .glow_radius = 1,
+        .color = {0, 255, 100}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    state.position = 5;
+    Led leds[10];
+    lightbar_render(&state, &config, leds);
+    TEST_ASSERT_EQUAL_UINT8(0, leds[5].r);
+    TEST_ASSERT_EQUAL_UINT8(255, leds[5].g);
+    TEST_ASSERT_EQUAL_UINT8(100, leds[5].b);
+    /* distance 1: brightness = 1 - 1/2 = 0.5 */
+    TEST_ASSERT_EQUAL_UINT8(0, leds[4].r);
+    TEST_ASSERT_EQUAL_UINT8(127, leds[4].g);
+    TEST_ASSERT_EQUAL_UINT8(50, leds[4].b);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_sets_position_to_middle);
@@ -320,5 +413,10 @@ int main(void) {
     RUN_TEST(test_middle_pause_no_retrigger_after_resume);
     RUN_TEST(test_zero_end_pause_skips_pause);
     RUN_TEST(test_zero_mid_pause_skips_pause);
+    RUN_TEST(test_render_single_led_no_glow);
+    RUN_TEST(test_render_glow_radius_2);
+    RUN_TEST(test_render_glow_at_left_edge);
+    RUN_TEST(test_render_glow_at_right_edge);
+    RUN_TEST(test_render_colored_dot);
     return UNITY_END();
 }

@@ -1,4 +1,5 @@
 #include "lightbar.h"
+#include <stdlib.h>
 
 void lightbar_init(LightbarState *state, const LightbarConfig *config) {
     state->position = config->num_leds / 2;
@@ -72,7 +73,20 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
 }
 
 void lightbar_render(const LightbarState *state, const LightbarConfig *config, Led *leds) {
-    (void)state;
-    (void)config;
-    (void)leds;
+    for (int i = 0; i < config->num_leds; i++) {
+        int distance = abs(i - state->position);
+        if (distance == 0) {
+            leds[i] = config->color;
+        } else if (config->glow_radius > 0 && distance <= config->glow_radius) {
+            int divisor = config->glow_radius + 1;
+            int factor = divisor - distance;
+            leds[i].r = (uint8_t)(config->color.r * factor / divisor);
+            leds[i].g = (uint8_t)(config->color.g * factor / divisor);
+            leds[i].b = (uint8_t)(config->color.b * factor / divisor);
+        } else {
+            leds[i].r = 0;
+            leds[i].g = 0;
+            leds[i].b = 0;
+        }
+    }
 }
