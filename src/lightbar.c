@@ -25,6 +25,19 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
         return;
     }
 
+    if (state->phase == LIGHTBAR_PAUSED_END || state->phase == LIGHTBAR_PAUSED_MIDDLE) {
+        state->pause_timer_ms -= dt_ms;
+        if (state->pause_timer_ms <= 0.0f) {
+            if (state->phase == LIGHTBAR_PAUSED_END) {
+                state->direction = -state->direction;
+            }
+            state->phase = LIGHTBAR_MOVING;
+            state->pause_timer_ms = 0.0f;
+            state->move_accum_ms = 0.0f;
+        }
+        return;
+    }
+
     if (state->phase == LIGHTBAR_MOVING) {
         float ms_per_step = 1000.0f / config->speed;
         state->move_accum_ms += dt_ms;
