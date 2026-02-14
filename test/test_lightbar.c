@@ -263,6 +263,39 @@ void test_middle_pause_no_retrigger_after_resume(void) {
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
 }
 
+void test_zero_end_pause_skips_pause(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 0, .mid_pause_ms = 0
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 22;
+    state.direction = 1;
+    /* Step to 23 (end), should reverse without pausing */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(23, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+}
+
+void test_zero_mid_pause_skips_pause(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f,
+        .end_pause_ms = 200, .mid_pause_ms = 0
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 13;
+    state.direction = -1;
+    /* Step to 12 (middle), should continue moving */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(12, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_sets_position_to_middle);
@@ -285,5 +318,7 @@ int main(void) {
     RUN_TEST(test_update_no_middle_pause_on_start);
     RUN_TEST(test_middle_pause_expires_and_resumes);
     RUN_TEST(test_middle_pause_no_retrigger_after_resume);
+    RUN_TEST(test_zero_end_pause_skips_pause);
+    RUN_TEST(test_zero_mid_pause_skips_pause);
     return UNITY_END();
 }
