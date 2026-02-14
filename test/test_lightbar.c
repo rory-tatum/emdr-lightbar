@@ -389,6 +389,48 @@ void test_render_colored_dot(void) {
     TEST_ASSERT_EQUAL_UINT8(50, leds[4].b);
 }
 
+void test_full_oscillation_cycle(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .speed = 100.0f,
+        .end_pause_ms = 50, .mid_pause_ms = 30,
+        .glow_radius = 0, .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    /* Start at middle (5), moving right */
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+
+    /* 100 LEDs/s => 10ms per step. Move 4 steps to reach position 9 */
+    lightbar_update(&state, &config, 40.0f);
+    TEST_ASSERT_EQUAL_INT(9, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_END, state.phase);
+
+    /* Expire end pause (50ms) */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+
+    /* Move 4 steps left to reach middle (5) */
+    lightbar_update(&state, &config, 40.0f);
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_MIDDLE, state.phase);
+
+    /* Expire middle pause (30ms) */
+    lightbar_update(&state, &config, 30.0f);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+
+    /* Move 5 steps left to reach position 0 */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(0, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_END, state.phase);
+
+    /* Expire end pause, direction reverses to +1 */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    TEST_ASSERT_EQUAL_INT(1, state.direction);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_sets_position_to_middle);
@@ -418,5 +460,6 @@ int main(void) {
     RUN_TEST(test_render_glow_at_left_edge);
     RUN_TEST(test_render_glow_at_right_edge);
     RUN_TEST(test_render_colored_dot);
+    RUN_TEST(test_full_oscillation_cycle);
     return UNITY_END();
 }
