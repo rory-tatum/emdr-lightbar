@@ -41,7 +41,7 @@ wasm: web/main.js
 	@echo "WASM build complete: web/main.js web/main.wasm"
 
 web/main.js: $(WASM_BRIDGE) $(LIGHTBAR_SRC) include/lightbar.h
-	$(EMCC) $(CFLAGS) -s NO_EXIT_RUNTIME=1 -s EXPORTED_RUNTIME_METHODS='["ccall"]' \
+	$(EMCC) $(CFLAGS) -s NO_EXIT_RUNTIME=1 -s EXPORTED_RUNTIME_METHODS='["ccall","HEAPU8"]' \
 		-o $@ $(WASM_BRIDGE) $(LIGHTBAR_SRC)
 
 clean:
