@@ -11,7 +11,6 @@ typedef struct {
     uint8_t num_leds;
     float speed;
     uint16_t end_pause_ms;
-    uint16_t mid_pause_ms;
     uint8_t glow_radius;
     Led color;
 } LightbarConfig;
@@ -19,8 +18,7 @@ typedef struct {
 typedef enum {
     LIGHTBAR_STOPPED,
     LIGHTBAR_MOVING,
-    LIGHTBAR_PAUSED_END,
-    LIGHTBAR_PAUSED_MIDDLE
+    LIGHTBAR_PAUSED_END
 } LightbarPhase;
 
 typedef struct {

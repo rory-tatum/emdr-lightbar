@@ -26,12 +26,10 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
         return;
     }
 
-    if (state->phase == LIGHTBAR_PAUSED_END || state->phase == LIGHTBAR_PAUSED_MIDDLE) {
+    if (state->phase == LIGHTBAR_PAUSED_END) {
         state->pause_timer_ms -= dt_ms;
         if (state->pause_timer_ms <= 0.0f) {
-            if (state->phase == LIGHTBAR_PAUSED_END) {
-                state->direction = -state->direction;
-            }
+            state->direction = -state->direction;
             state->phase = LIGHTBAR_MOVING;
             state->pause_timer_ms = 0.0f;
             state->move_accum_ms = 0.0f;
@@ -58,16 +56,6 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
                     return;
                 }
                 state->direction = -state->direction;
-            }
-
-            /* Middle check */
-            if (state->position == config->num_leds / 2) {
-                if (config->mid_pause_ms > 0) {
-                    state->phase = LIGHTBAR_PAUSED_MIDDLE;
-                    state->pause_timer_ms = (float)config->mid_pause_ms;
-                    state->move_accum_ms = 0.0f;
-                    return;
-                }
             }
         }
     }
