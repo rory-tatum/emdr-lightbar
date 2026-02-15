@@ -7,6 +7,7 @@ void lightbar_init(LightbarState *state, const LightbarConfig *config) {
     state->phase = LIGHTBAR_STOPPED;
     state->pause_timer_ms = 0.0f;
     state->move_accum_ms = 0.0f;
+    state->edges_remaining = 0;
 }
 
 void lightbar_start(LightbarState *state) {

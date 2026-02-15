@@ -18,7 +18,8 @@ typedef struct {
 typedef enum {
     LIGHTBAR_STOPPED,
     LIGHTBAR_MOVING,
-    LIGHTBAR_PAUSED_END
+    LIGHTBAR_PAUSED_END,
+    LIGHTBAR_STOPPING
 } LightbarPhase;
 
 typedef struct {
@@ -27,6 +28,7 @@ typedef struct {
     LightbarPhase phase;
     float pause_timer_ms;
     float move_accum_ms;
+    uint8_t edges_remaining;
 } LightbarState;
 
 void lightbar_init(LightbarState *state, const LightbarConfig *config);
