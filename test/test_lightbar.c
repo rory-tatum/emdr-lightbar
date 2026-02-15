@@ -86,7 +86,7 @@ void test_update_stopped_does_nothing(void) {
 void test_update_advances_position(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 0, .mid_pause_ms = 0
+        .end_pause_ms = 0
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -100,7 +100,7 @@ void test_update_advances_position(void) {
 void test_update_accumulates_partial_steps(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 0, .mid_pause_ms = 0
+        .end_pause_ms = 0
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -115,7 +115,7 @@ void test_update_accumulates_partial_steps(void) {
 void test_update_multiple_steps_in_one_frame(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 0, .mid_pause_ms = 0
+        .end_pause_ms = 0
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -129,7 +129,7 @@ void test_update_multiple_steps_in_one_frame(void) {
 void test_update_triggers_end_pause_at_right(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 0
+        .end_pause_ms = 200
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -145,7 +145,7 @@ void test_update_triggers_end_pause_at_right(void) {
 void test_update_triggers_end_pause_at_left(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 0
+        .end_pause_ms = 200
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -160,7 +160,7 @@ void test_update_triggers_end_pause_at_left(void) {
 void test_end_pause_expires_and_reverses(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 0
+        .end_pause_ms = 200
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -178,7 +178,7 @@ void test_end_pause_expires_and_reverses(void) {
 void test_end_pause_partial_timer(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 0
+        .end_pause_ms = 200
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -192,81 +192,10 @@ void test_end_pause_partial_timer(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.0f, state.pause_timer_ms);
 }
 
-void test_update_triggers_middle_pause(void) {
-    LightbarConfig config = {
-        .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 100
-    };
-    LightbarState state;
-    lightbar_init(&state, &config);
-    lightbar_start(&state);
-    /* Position one step before middle, moving left */
-    state.position = 13;
-    state.direction = -1;
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(12, state.position);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_MIDDLE, state.phase);
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.0f, state.pause_timer_ms);
-}
-
-void test_update_no_middle_pause_on_start(void) {
-    LightbarConfig config = {
-        .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 100
-    };
-    LightbarState state;
-    lightbar_init(&state, &config);
-    lightbar_start(&state);
-    /* Start at middle (12), first step should move to 13 without pausing */
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(13, state.position);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
-}
-
-void test_middle_pause_expires_and_resumes(void) {
-    LightbarConfig config = {
-        .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 100
-    };
-    LightbarState state;
-    lightbar_init(&state, &config);
-    lightbar_start(&state);
-    state.position = 12;
-    state.direction = -1;
-    state.phase = LIGHTBAR_PAUSED_MIDDLE;
-    state.pause_timer_ms = 100.0f;
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
-    /* Direction unchanged after middle pause */
-    TEST_ASSERT_EQUAL_INT(-1, state.direction);
-}
-
-void test_middle_pause_no_retrigger_after_resume(void) {
-    LightbarConfig config = {
-        .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 100
-    };
-    LightbarState state;
-    lightbar_init(&state, &config);
-    lightbar_start(&state);
-    /* Simulate resuming from middle pause: at middle, moving left */
-    state.position = 12;
-    state.direction = -1;
-    state.phase = LIGHTBAR_PAUSED_MIDDLE;
-    state.pause_timer_ms = 100.0f;
-    /* Expire the pause */
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
-    /* Next step should move to 11, not re-trigger middle pause */
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(11, state.position);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
-}
-
 void test_zero_end_pause_skips_pause(void) {
     LightbarConfig config = {
         .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 0, .mid_pause_ms = 0
+        .end_pause_ms = 0
     };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -278,22 +207,6 @@ void test_zero_end_pause_skips_pause(void) {
     TEST_ASSERT_EQUAL_INT(23, state.position);
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
     TEST_ASSERT_EQUAL_INT(-1, state.direction);
-}
-
-void test_zero_mid_pause_skips_pause(void) {
-    LightbarConfig config = {
-        .num_leds = 24, .speed = 10.0f,
-        .end_pause_ms = 200, .mid_pause_ms = 0
-    };
-    LightbarState state;
-    lightbar_init(&state, &config);
-    lightbar_start(&state);
-    state.position = 13;
-    state.direction = -1;
-    /* Step to 12 (middle), should continue moving */
-    lightbar_update(&state, &config, 100.0f);
-    TEST_ASSERT_EQUAL_INT(12, state.position);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
 }
 
 void test_render_single_led_no_glow(void) {
@@ -392,7 +305,7 @@ void test_render_colored_dot(void) {
 void test_full_oscillation_cycle(void) {
     LightbarConfig config = {
         .num_leds = 10, .speed = 100.0f,
-        .end_pause_ms = 50, .mid_pause_ms = 30,
+        .end_pause_ms = 50,
         .glow_radius = 0, .color = {255, 255, 255}
     };
     LightbarState state;
@@ -411,17 +324,8 @@ void test_full_oscillation_cycle(void) {
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
     TEST_ASSERT_EQUAL_INT(-1, state.direction);
 
-    /* Move 4 steps left to reach middle (5) */
-    lightbar_update(&state, &config, 40.0f);
-    TEST_ASSERT_EQUAL_INT(5, state.position);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_MIDDLE, state.phase);
-
-    /* Expire middle pause (30ms) */
-    lightbar_update(&state, &config, 30.0f);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
-
-    /* Move 5 steps left to reach position 0 */
-    lightbar_update(&state, &config, 50.0f);
+    /* Move 9 steps left to reach position 0 (passes through middle) */
+    lightbar_update(&state, &config, 90.0f);
     TEST_ASSERT_EQUAL_INT(0, state.position);
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_PAUSED_END, state.phase);
 
@@ -449,12 +353,7 @@ int main(void) {
     RUN_TEST(test_update_triggers_end_pause_at_left);
     RUN_TEST(test_end_pause_expires_and_reverses);
     RUN_TEST(test_end_pause_partial_timer);
-    RUN_TEST(test_update_triggers_middle_pause);
-    RUN_TEST(test_update_no_middle_pause_on_start);
-    RUN_TEST(test_middle_pause_expires_and_resumes);
-    RUN_TEST(test_middle_pause_no_retrigger_after_resume);
     RUN_TEST(test_zero_end_pause_skips_pause);
-    RUN_TEST(test_zero_mid_pause_skips_pause);
     RUN_TEST(test_render_single_led_no_glow);
     RUN_TEST(test_render_glow_radius_2);
     RUN_TEST(test_render_glow_at_left_edge);
