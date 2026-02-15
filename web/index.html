@@ -75,11 +75,6 @@
             <span class="value"><span id="end-pause-val">200</span> ms</span>
         </div>
         <div class="control-row">
-            <label>Mid pause</label>
-            <input type="range" id="mid-pause" min="0" max="1000" step="10" value="100">
-            <span class="value"><span id="mid-pause-val">100</span> ms</span>
-        </div>
-        <div class="control-row">
             <label>Color</label>
             <input type="color" id="color" value="#00ffff">
         </div>
@@ -91,7 +86,7 @@
                 var running = false;
                 var lastTime = 0;
 
-                Module._wasm_init(NUM_LEDS, 15.0, 200, 100, 2, 0, 255, 255);
+                Module._wasm_init(NUM_LEDS, 15.0, 200, 2, 0, 255, 255);
 
                 var strip = document.getElementById('strip');
                 var ledEls = [];
@@ -144,12 +139,6 @@
                     var val = parseInt(e.target.value);
                     document.getElementById('end-pause-val').textContent = val;
                     Module._wasm_set_end_pause(val);
-                });
-
-                document.getElementById('mid-pause').addEventListener('input', function(e) {
-                    var val = parseInt(e.target.value);
-                    document.getElementById('mid-pause-val').textContent = val;
-                    Module._wasm_set_mid_pause(val);
                 });
 
                 document.getElementById('color').addEventListener('input', function(e) {
