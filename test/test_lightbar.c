@@ -398,6 +398,81 @@ void test_render_colored_dot(void) {
     TEST_ASSERT_EQUAL_UINT8(50, leds[4].b);
 }
 
+void test_stopping_continues_movement(void) {
+    LightbarConfig config = {
+        .num_leds = 24, .speed = 10.0f, .end_pause_ms = 200
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 15;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    /* 10 LEDs/s => 100ms per step */
+    lightbar_update(&state, &config, 100.0f);
+    TEST_ASSERT_EQUAL_INT(16, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+}
+
+void test_stopping_decrements_edges_at_end(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .speed = 100.0f, .end_pause_ms = 50
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 2;
+    state.direction = -1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(1, state.edges_remaining);
+    /* 2 steps to left edge */
+    lightbar_update(&state, &config, 20.0f);
+    TEST_ASSERT_EQUAL_INT(0, state.position);
+    TEST_ASSERT_EQUAL_UINT8(0, state.edges_remaining);
+}
+
+void test_stopping_respects_end_pause(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .speed = 100.0f, .end_pause_ms = 50
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 1;
+    state.direction = -1;
+    lightbar_stop(&state, &config);
+    /* 1 step to left edge */
+    lightbar_update(&state, &config, 10.0f);
+    TEST_ASSERT_EQUAL_INT(0, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+    /* Partial pause: direction not yet reversed */
+    lightbar_update(&state, &config, 25.0f);
+    TEST_ASSERT_EQUAL_INT(0, state.position);
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+    /* Expire remaining pause: direction reverses */
+    lightbar_update(&state, &config, 25.0f);
+    TEST_ASSERT_EQUAL_INT(1, state.direction);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+}
+
+void test_stopping_finalizes_at_middle(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .speed = 100.0f, .end_pause_ms = 0
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 3;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(0, state.edges_remaining);
+    /* 2 steps: 3 -> 4 -> 5 (middle). Finalize. */
+    lightbar_update(&state, &config, 20.0f);
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPED, state.phase);
+    TEST_ASSERT_EQUAL_INT(1, state.direction);
+}
+
 void test_full_oscillation_cycle(void) {
     LightbarConfig config = {
         .num_leds = 10, .speed = 100.0f,
@@ -463,6 +538,10 @@ int main(void) {
     RUN_TEST(test_render_glow_at_left_edge);
     RUN_TEST(test_render_glow_at_right_edge);
     RUN_TEST(test_render_colored_dot);
+    RUN_TEST(test_stopping_continues_movement);
+    RUN_TEST(test_stopping_decrements_edges_at_end);
+    RUN_TEST(test_stopping_respects_end_pause);
+    RUN_TEST(test_stopping_finalizes_at_middle);
     RUN_TEST(test_full_oscillation_cycle);
     return UNITY_END();
 }

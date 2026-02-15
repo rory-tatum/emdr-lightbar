@@ -51,6 +51,52 @@ void lightbar_update(LightbarState *state, const LightbarConfig *config, float d
         return;
     }
 
+    if (state->phase == LIGHTBAR_STOPPING) {
+        /* Handle pending end pause (stays in STOPPING phase) */
+        if (state->pause_timer_ms > 0.0f) {
+            state->pause_timer_ms -= dt_ms;
+            if (state->pause_timer_ms <= 0.0f) {
+                state->direction = -state->direction;
+                state->pause_timer_ms = 0.0f;
+                state->move_accum_ms = 0.0f;
+            }
+            return;
+        }
+
+        if (config->speed <= 0.0f) return;
+        float ms_per_step = 1000.0f / config->speed;
+        state->move_accum_ms += dt_ms;
+        while (state->move_accum_ms >= ms_per_step) {
+            state->move_accum_ms -= ms_per_step;
+            state->position += state->direction;
+
+            /* Edge check */
+            if (state->position <= 0 || state->position >= config->num_leds - 1) {
+                if (state->position <= 0) state->position = 0;
+                if (state->position >= config->num_leds - 1)
+                    state->position = config->num_leds - 1;
+                if (state->edges_remaining > 0) state->edges_remaining--;
+                if (config->end_pause_ms > 0) {
+                    state->pause_timer_ms = (float)config->end_pause_ms;
+                    state->move_accum_ms = 0.0f;
+                    return;
+                }
+                state->direction = -state->direction;
+            }
+
+            /* Middle check */
+            if (state->position == config->num_leds / 2 &&
+                state->edges_remaining == 0) {
+                state->phase = LIGHTBAR_STOPPED;
+                state->direction = 1;
+                state->pause_timer_ms = 0.0f;
+                state->move_accum_ms = 0.0f;
+                return;
+            }
+        }
+        return;
+    }
+
     if (state->phase == LIGHTBAR_MOVING) {
         if (config->speed <= 0.0f) return;
         float ms_per_step = 1000.0f / config->speed;
