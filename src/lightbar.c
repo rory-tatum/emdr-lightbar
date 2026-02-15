@@ -15,11 +15,24 @@ void lightbar_start(LightbarState *state) {
 }
 
 void lightbar_stop(LightbarState *state, const LightbarConfig *config) {
-    state->position = config->num_leds / 2;
-    state->direction = 1;
-    state->phase = LIGHTBAR_STOPPED;
-    state->pause_timer_ms = 0.0f;
-    state->move_accum_ms = 0.0f;
+    if (state->phase == LIGHTBAR_STOPPED || state->phase == LIGHTBAR_STOPPING) {
+        return;
+    }
+
+    int middle = config->num_leds / 2;
+
+    if (state->phase == LIGHTBAR_PAUSED_END) {
+        state->edges_remaining = (state->direction == 1) ? 1 : 0;
+    } else {
+        /* MOVING */
+        if (state->direction == 1) {
+            state->edges_remaining = (state->position >= middle) ? 2 : 0;
+        } else {
+            state->edges_remaining = 1;
+        }
+    }
+
+    state->phase = LIGHTBAR_STOPPING;
 }
 
 void lightbar_update(LightbarState *state, const LightbarConfig *config, float dt_ms) {

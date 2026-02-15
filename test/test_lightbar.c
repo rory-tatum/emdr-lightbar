@@ -48,7 +48,7 @@ void test_start_sets_phase_moving(void) {
     TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
 }
 
-void test_stop_resets_to_middle(void) {
+void test_stop_preserves_position(void) {
     LightbarConfig config = { .num_leds = 24 };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -56,12 +56,12 @@ void test_stop_resets_to_middle(void) {
     state.position = 5;
     state.direction = -1;
     lightbar_stop(&state, &config);
-    TEST_ASSERT_EQUAL_INT(12, state.position);
-    TEST_ASSERT_EQUAL_INT(1, state.direction);
-    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPED, state.phase);
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
 }
 
-void test_stop_clears_accumulators(void) {
+void test_stop_preserves_accumulators(void) {
     LightbarConfig config = { .num_leds = 24 };
     LightbarState state;
     lightbar_init(&state, &config);
@@ -69,8 +69,104 @@ void test_stop_clears_accumulators(void) {
     state.move_accum_ms = 50.0f;
     state.pause_timer_ms = 100.0f;
     lightbar_stop(&state, &config);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, state.pause_timer_ms);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, state.move_accum_ms);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 50.0f, state.move_accum_ms);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 100.0f, state.pause_timer_ms);
+}
+
+void test_stop_sets_stopping_phase(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+}
+
+void test_stop_edges_remaining_going_right_from_middle(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 12;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(2, state.edges_remaining);
+}
+
+void test_stop_edges_remaining_going_left(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 8;
+    state.direction = -1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(1, state.edges_remaining);
+}
+
+void test_stop_edges_remaining_going_right_below_middle(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 5;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(0, state.edges_remaining);
+}
+
+void test_stop_edges_remaining_paused_right_edge(void) {
+    LightbarConfig config = { .num_leds = 24, .end_pause_ms = 200 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 23;
+    state.direction = 1;
+    state.phase = LIGHTBAR_PAUSED_END;
+    state.pause_timer_ms = 100.0f;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(1, state.edges_remaining);
+}
+
+void test_stop_edges_remaining_paused_left_edge(void) {
+    LightbarConfig config = { .num_leds = 24, .end_pause_ms = 200 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 0;
+    state.direction = -1;
+    state.phase = LIGHTBAR_PAUSED_END;
+    state.pause_timer_ms = 100.0f;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_UINT8(0, state.edges_remaining);
+}
+
+void test_stop_while_already_stopped_is_noop(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPED, state.phase);
+    TEST_ASSERT_EQUAL_INT(12, state.position);
+}
+
+void test_stop_while_already_stopping_is_noop(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 15;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    uint8_t saved_edges = state.edges_remaining;
+    /* Simulate some movement, then stop again */
+    state.position = 3;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    /* Should be no-op: edges_remaining not recalculated */
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+    TEST_ASSERT_EQUAL_UINT8(saved_edges, state.edges_remaining);
+    TEST_ASSERT_EQUAL_INT(3, state.position);
 }
 
 void test_update_stopped_does_nothing(void) {
@@ -343,8 +439,16 @@ int main(void) {
     RUN_TEST(test_init_clears_timers);
     RUN_TEST(test_init_odd_led_count);
     RUN_TEST(test_start_sets_phase_moving);
-    RUN_TEST(test_stop_resets_to_middle);
-    RUN_TEST(test_stop_clears_accumulators);
+    RUN_TEST(test_stop_preserves_position);
+    RUN_TEST(test_stop_preserves_accumulators);
+    RUN_TEST(test_stop_sets_stopping_phase);
+    RUN_TEST(test_stop_edges_remaining_going_right_from_middle);
+    RUN_TEST(test_stop_edges_remaining_going_left);
+    RUN_TEST(test_stop_edges_remaining_going_right_below_middle);
+    RUN_TEST(test_stop_edges_remaining_paused_right_edge);
+    RUN_TEST(test_stop_edges_remaining_paused_left_edge);
+    RUN_TEST(test_stop_while_already_stopped_is_noop);
+    RUN_TEST(test_stop_while_already_stopping_is_noop);
     RUN_TEST(test_update_stopped_does_nothing);
     RUN_TEST(test_update_advances_position);
     RUN_TEST(test_update_accumulates_partial_steps);
