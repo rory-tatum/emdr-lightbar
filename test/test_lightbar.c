@@ -473,6 +473,20 @@ void test_stopping_finalizes_at_middle(void) {
     TEST_ASSERT_EQUAL_INT(1, state.direction);
 }
 
+void test_start_cancels_stopping(void) {
+    LightbarConfig config = { .num_leds = 24 };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    state.position = 15;
+    state.direction = 1;
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+    lightbar_start(&state);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_MOVING, state.phase);
+    TEST_ASSERT_EQUAL_INT(15, state.position);
+}
+
 void test_full_oscillation_cycle(void) {
     LightbarConfig config = {
         .num_leds = 10, .speed = 100.0f,
@@ -542,6 +556,7 @@ int main(void) {
     RUN_TEST(test_stopping_decrements_edges_at_end);
     RUN_TEST(test_stopping_respects_end_pause);
     RUN_TEST(test_stopping_finalizes_at_middle);
+    RUN_TEST(test_start_cancels_stopping);
     RUN_TEST(test_full_oscillation_cycle);
     return UNITY_END();
 }
