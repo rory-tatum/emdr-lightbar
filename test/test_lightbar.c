@@ -487,6 +487,51 @@ void test_start_cancels_stopping(void) {
     TEST_ASSERT_EQUAL_INT(15, state.position);
 }
 
+void test_stopping_full_cycle(void) {
+    LightbarConfig config = {
+        .num_leds = 10, .speed = 100.0f,
+        .end_pause_ms = 50,
+        .glow_radius = 0, .color = {255, 255, 255}
+    };
+    LightbarState state;
+    lightbar_init(&state, &config);
+    lightbar_start(&state);
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+
+    /* Move 2 steps right: 5 -> 7 */
+    lightbar_update(&state, &config, 20.0f);
+    TEST_ASSERT_EQUAL_INT(7, state.position);
+
+    /* Stop: going right, pos >= middle => edges_remaining = 2 */
+    lightbar_stop(&state, &config);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPING, state.phase);
+    TEST_ASSERT_EQUAL_UINT8(2, state.edges_remaining);
+
+    /* Move 2 steps to right edge (9), edges 2->1 */
+    lightbar_update(&state, &config, 20.0f);
+    TEST_ASSERT_EQUAL_INT(9, state.position);
+    TEST_ASSERT_EQUAL_UINT8(1, state.edges_remaining);
+
+    /* Expire end pause */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(-1, state.direction);
+
+    /* Move 9 steps left to left edge (0), edges 1->0 */
+    lightbar_update(&state, &config, 90.0f);
+    TEST_ASSERT_EQUAL_INT(0, state.position);
+    TEST_ASSERT_EQUAL_UINT8(0, state.edges_remaining);
+
+    /* Expire end pause */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(1, state.direction);
+
+    /* Move 5 steps right to middle (5) => finalize */
+    lightbar_update(&state, &config, 50.0f);
+    TEST_ASSERT_EQUAL_INT(5, state.position);
+    TEST_ASSERT_EQUAL_INT(LIGHTBAR_STOPPED, state.phase);
+    TEST_ASSERT_EQUAL_INT(1, state.direction);
+}
+
 void test_full_oscillation_cycle(void) {
     LightbarConfig config = {
         .num_leds = 10, .speed = 100.0f,
@@ -557,6 +602,7 @@ int main(void) {
     RUN_TEST(test_stopping_respects_end_pause);
     RUN_TEST(test_stopping_finalizes_at_middle);
     RUN_TEST(test_start_cancels_stopping);
+    RUN_TEST(test_stopping_full_cycle);
     RUN_TEST(test_full_oscillation_cycle);
     return UNITY_END();
 }
