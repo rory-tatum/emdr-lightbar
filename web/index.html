@@ -113,19 +113,9 @@
                     if (running) {
                         Module._wasm_start();
                         toggleBtn.textContent = 'Stop';
-                        lastTime = 0;
                     } else {
                         Module._wasm_stop();
                         toggleBtn.textContent = 'Start';
-                        /* Re-render stopped state */
-                        Module._wasm_render();
-                        ptr = Module._wasm_get_leds_ptr();
-                        for (var j = 0; j < NUM_LEDS; j++) {
-                            var r = Module.HEAPU8[ptr + j * 3];
-                            var g = Module.HEAPU8[ptr + j * 3 + 1];
-                            var b = Module.HEAPU8[ptr + j * 3 + 2];
-                            ledEls[j].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
-                        }
                     }
                 });
 
@@ -150,19 +140,17 @@
                 });
 
                 function frame(time) {
-                    if (running) {
-                        var dt = lastTime > 0 ? time - lastTime : 0;
-                        Module._wasm_update(dt);
-                        Module._wasm_render();
-                        ptr = Module._wasm_get_leds_ptr();
-                        for (var i = 0; i < NUM_LEDS; i++) {
-                            var r = Module.HEAPU8[ptr + i * 3];
-                            var g = Module.HEAPU8[ptr + i * 3 + 1];
-                            var b = Module.HEAPU8[ptr + i * 3 + 2];
-                            ledEls[i].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
-                        }
-                    }
+                    var dt = lastTime > 0 ? time - lastTime : 0;
                     lastTime = time;
+                    Module._wasm_update(dt);
+                    Module._wasm_render();
+                    ptr = Module._wasm_get_leds_ptr();
+                    for (var i = 0; i < NUM_LEDS; i++) {
+                        var r = Module.HEAPU8[ptr + i * 3];
+                        var g = Module.HEAPU8[ptr + i * 3 + 1];
+                        var b = Module.HEAPU8[ptr + i * 3 + 2];
+                        ledEls[i].style.backgroundColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+                    }
                     requestAnimationFrame(frame);
                 }
                 requestAnimationFrame(frame);
